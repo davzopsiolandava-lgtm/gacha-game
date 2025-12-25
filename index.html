@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DHAFIZ777-GACHA</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
+<style>
+body{margin:0;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:Arial,sans-serif;color:#0f0;background:#000;overflow:hidden;}
+#login-container{display:flex;flex-direction:column;gap:15px;background:#111;padding:30px;border-radius:10px;border:2px solid #0f0;}
+#login-container input{padding:10px 20px;font-size:18px;border-radius:5px;border:2px solid #0f0;background:#000;color:#0f0;outline:none;}
+#login-container button{padding:10px 20px;font-size:20px;background:#0f0;color:#000;border:none;border-radius:5px;cursor:pointer;}
+#login-container button:active{transform:scale(0.95);}
+#login-error{color:red;font-size:16px;height:20px;text-align:center;}
+
+#adminPanel{display:none;flex-direction:column;gap:15px;border:2px solid #0f0;padding:20px;border-radius:10px;background:#111;width:360px;}
+#adminPanel input,#adminPanel button{font-size:16px;padding:8px;width:100%;margin-top:5px;}
+.success{color:#0f0;font-weight:bold;}
+.error{color:red;font-weight:bold;}
+
+#gacha-container{display:none;flex-direction:column;justify-content:center;align-items:center;gap:15px;}
+#gacha-container #input-name{padding:10px 20px;font-size:20px;border-radius:5px;border:2px solid #0f0;background:#000;color:#0f0;outline:none;text-align:center;}
+button#spinBtn{padding:15px 50px;font-size:24px;border:none;border-radius:10px;background:#0f0;color:#000;cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;box-shadow:0 0 10px #0f0;}
+button#spinBtn:active{transform:scale(0.95);box-shadow:0 0 20px #0ff;}
+.gacha-item{width:120px;height:180px;border-radius:10px;border:2px solid #0f0;overflow:hidden;display:flex;justify-content:center;align-items:center;transition:all 0.3s;}
+.gacha-item img{width:100%;height:100%;object-fit:cover;border-radius:10px;filter:drop-shadow(0 0 5px #0f0);}
+.gacha-item.active{transform:scale(1.2) rotate(5deg);border:3px solid #0ff;box-shadow:0 0 25px #0ff,0 0 50px #0ff inset;animation:glow 0.5s infinite alternate;}
+@keyframes glow{0%{box-shadow:0 0 15px #0ff,0 0 25px #0ff inset;}100%{box-shadow:0 0 30px #0ff,0 0 60px #0ff inset;}}
+#result{margin-top:20px;font-size:28px;font-weight:bold;color:#0f0;text-align:center;min-height:40px;white-space:pre;}
+
+#banPopup{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);color:red;font-size:32px;font-weight:bold;text-align:center;padding-top:30vh;z-index:9999;}
+.popup-success{display:none;position:fixed;top:20px;right:20px;background:#0f0;color:#000;padding:15px 25px;font-weight:bold;border-radius:10px;box-shadow:0 0 15px #0f0;z-index:9999;animation:fadeOut 2s forwards;}
+@keyframes fadeOut{0%{opacity:1;}80%{opacity:1;}100%{opacity:0;transform:translateY(-50px);}}
+</style>
+</head>
+<body>
+<div id="login-container">
+  <input type="text" id="username" placeholder="Username">
+  <input type="password" id="password" placeholder="Password">
+  <button id="loginBtn">Login</button>
+  <div id="login-error"></div>
+</div>
+
+<div id="adminPanel">
+  <h3>Panel Admin</h3>
+  <input type="text" id="newUser" placeholder="Username baru">
+  <input type="text" id="newPass" placeholder="Password baru">
+  <button onclick="addAccount()">Tambah Akun</button>
+  <div id="addMsg"></div>
+
+  <input type="text" id="banUser" placeholder="Username diban">
+  <button onclick="banAccount()">Ban Akun</button>
+  <div id="banMsg"></div>
+
+  <button onclick="openGacha()">➡ Lanjut ke Gacha</button>
+</div>
+
+<div id="gacha-container">
+  <input type="text" id="input-name" placeholder="Masukkan nama kamu">
+  <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:10px;">
+    <div class="gacha-item"><img src="https://img1.pixhost.to/images/11126/673930060_nulxzmd.jpg" alt="zonk"></div>
+    <div class="gacha-item"><img src="https://img1.pixhost.to/images/11126/673930060_nulxzmd.jpg" alt="zonk"></div>
+    <div class="gacha-item"><img src="https://img1.pixhost.to/images/11126/673930060_nulxzmd.jpg" alt="zonk"></div>
+    <div class="gacha-item"><img src="https://img1.pixhost.to/images/11126/673929319_nulxzmd.jpg" alt="secret"></div>
+    <div class="gacha-item"><img src="https://img1.pixhost.to/images/11126/673929319_nulxzmd.jpg" alt="secret"></div>
+    <div class="gacha-item"><img src="https://img1.pixhost.to/images/11126/673929319_nulxzmd.jpg" alt="secret"></div>
+  </div>
+  <button id="spinBtn">Spin!</button>
+  <div id="result"></div>
+</div>
+
+<div id="banPopup">AKUN ANDA TELAH DI BAN</div>
+<div id="popupSuccess" class="popup-success"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const SUPABASE_URL = "https://qqresqszdthavxhiatjb.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_RRytEEM1eTsM0To0-Flhbw_Cqa33m2i";
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  function showSuccess(msg){
+    const popup=document.getElementById('popupSuccess');
+    popup.textContent=msg;
+    popup.style.display='block';
+    setTimeout(()=>{popup.style.display='none';},2000);
+  }
+
+  const loginBtn=document.getElementById('loginBtn');
+  const usernameInput=document.getElementById('username');
+  const passwordInput=document.getElementById('password');
+  const loginError=document.getElementById('login-error');
+  const loginContainer=document.getElementById('login-container');
+  const adminPanel=document.getElementById('adminPanel');
+  const gachaContainer=document.getElementById('gacha-container');
+  let currentUser=null;
+
+  loginBtn.addEventListener('click', async ()=>{
+    const u=usernameInput.value.trim();
+    const p=passwordInput.value.trim();
+    const { data: user, error } = await supabaseClient.from('users').select('*').eq('username', u).eq('password', p).single();
+    if(error || !user){ loginError.textContent="Username / Password salah"; return; }
+    if(user.banned){ document.getElementById('banPopup').style.display='block'; return; }
+    currentUser=user;
+    loginContainer.style.display='none';
+    if(user.admin){ adminPanel.style.display='flex'; } else { gachaContainer.style.display='flex'; }
+  });
+
+  window.addAccount = async ()=>{
+    const u=document.getElementById('newUser').value.trim();
+    const p=document.getElementById('newPass').value.trim();
+    if(!u||!p)return;
+    const { error } = await supabaseClient.from('users').insert([{username:u,password:p,banned:false,admin:false,spinsLeft:3}]);
+    document.getElementById('addMsg').innerHTML=error?'<span class="error">❌ Gagal</span>':'<span class="success">✔ Akun ditambahkan</span>';
+    if(!error)showSuccess(`Akun ${u} ditambahkan! (Spin 3x)`);
+    document.getElementById('newUser').value=''; document.getElementById('newPass').value='';
+  }
+
+  window.banAccount = async ()=>{
+    const u=document.getElementById('banUser').value.trim();
+    const { data, error } = await supabaseClient.from('users').update({banned:true}).eq('username',u);
+    document.getElementById('banMsg').innerHTML=(error||data.length===0)?'<span class="error">❌ User tidak ditemukan</span>':'<span class="success">✔ Akun dibanned</span>';
+    if(!error&&data.length>0)showSuccess(`Akun ${u} dibanned!`);
+    document.getElementById('banUser').value='';
+  }
+
+  window.openGacha = ()=>{ adminPanel.style.display='none'; gachaContainer.style.display='flex'; }
+
+  const gachaItems=document.querySelectorAll(".gacha-item img");
+  const spinBtn=document.getElementById("spinBtn");
+  const resultDiv=document.getElementById("result");
+  const inputName=document.getElementById("input-name");
+  const spinImages=["https://img1.pixhost.to/images/11126/673930060_nulxzmd.jpg","https://img1.pixhost.to/images/11126/673929319_nulxzmd.jpg"];
+
+  function typeResult(text){let i=0; resultDiv.textContent=''; const typing=setInterval(()=>{resultDiv.textContent+=text[i];i++;if(i>=text.length)clearInterval(typing);},50);}
+
+  spinBtn.addEventListener("click", async ()=>{
+    if(!currentUser)return;
+    const name=inputName.value.trim();
+    if(!name){alert("Masukkan nama dulu!"); return;}
+    const { data: user } = await supabaseClient.from('users').select('*').eq('username', currentUser.username).single();
+    if(!user)return;
+    if(user.spinsLeft<=0){
+      await supabaseClient.from('users').update({banned:true}).eq('username',user.username);
+      document.getElementById('banPopup').style.display='block';
+      return;
+    }
+    await supabaseClient.from('users').update({spinsLeft:user.spinsLeft-1}).eq('username',user.username);
+    currentUser={...user,spinsLeft:user.spinsLeft-1};
+    resultDiv.textContent=''; let interval=100, rounds=20, currentRound=0;
+    const spinInterval=setInterval(()=>{
+      gachaItems.forEach(img=>img.parentElement.classList.remove("active"));
+      gachaItems.forEach(img=>img.src=spinImages[Math.floor(Math.random()*spinImages.length)]);
+      const activeIndex=Math.floor(Math.random()*gachaItems.length);
+      gachaItems[activeIndex].parentElement.classList.add("active");
+      currentRound++;
+      if(currentRound>rounds){
+        clearInterval(spinInterval);
+        gachaItems.forEach(img=>img.parentElement.classList.remove("active"));
+        const zonkIndex=Math.floor(Math.random()*3);
+        gachaItems[zonkIndex].parentElement.classList.add("active");
+        gachaItems.forEach((img,idx)=>{if(idx<=2)img.src="https://img1.pixhost.to/images/11126/673930060_nulxzmd.jpg";});
+        typeResult(`${name}, kamu Mendapatkan: Zonk`);
+      }
+    },interval);
+  });
+});
+</script>
+</body>
+  </html>
