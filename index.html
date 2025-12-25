@@ -96,7 +96,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const u=usernameInput.value.trim();
     const p=passwordInput.value.trim();
     const { data: user, error } = await supabaseClient.from('users').select('*').eq('username', u).eq('password', p).single();
-    console.log('Login debug:', user, error);
     if(error || !user){ loginError.textContent="Username / Password salah"; return; }
     if(user.banned){ document.getElementById('banPopup').style.display='block'; return; }
     currentUser=user;
